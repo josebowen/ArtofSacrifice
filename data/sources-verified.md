@@ -13,5 +13,9 @@ Every AT&T figure on the final screen, with the page it was read on.
 | April 8, 2022: WarnerMedia transaction closed; AT&T received $40.4B in cash and WarnerMedia's retention of certain debt | Joint release as reported by Telecompetitor and Advanced Television (secondary). https://www.telecompetitor.com/att-and-discovery-close-warnermedia-transaction/ |
 | Annual dividend resized from $2.08 to $1.11 per share; step up investment in 5G and fiber; 30 million fiber locations by year end 2025 | AT&T Form 8-K, Feb 1, 2022 (dividend); release text as reported by Lightwave (fiber target, secondary). https://www.sec.gov/Archives/edgar/data/732717/000119312522023926/d297230d8k.htm |
 | Sept 30, 2024: agreement to sell remaining 70% of DIRECTV to TPG; about $7.6B of cash payments expected | AT&T release. https://about.att.com/story/2024/directv-to-tpg.html |
+| More than 1,600 US companies, 1990 to 2005; mean year to year correlation of business unit capital 0.92 | Hall, Lovallo and Musters, McKinsey Quarterly, March 2012. https://mckinsey.com/capabilities/strategy-and-corporate-finance/our-insights/how-to-put-your-money-where-your-strategy-is |
+| AT&T had acquired Iusacell and Nextel Mexico by the DIRECTV close (July 2015) | AT&T release as reprinted by Converge Digest (secondary). https://convergedigest.com/at-completes-acquisition-of-directv/ |
+
+From memory, high confidence, no page read: AT&T bought no cable operator in 2014 to 2022.
 
 Not verified on a live page this session (cited without links): Lafley and Martin, Playing to Win (2013); Porter, "What Is Strategy?" HBR (1996); Kerr, "On the Folly of Rewarding A, While Hoping for B," AMJ 18(4), 1975.

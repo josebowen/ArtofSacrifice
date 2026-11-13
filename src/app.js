@@ -1,6 +1,7 @@
 (function(){
 const M = Model, $ = s => document.querySelector(s), app = $('#app'), ov = $('#ov');
 const Q = new URLSearchParams(location.search), FAST = Q.has('fast') || matchMedia('(prefers-reduced-motion:reduce)').matches;
+const lc = n => n.charAt(0).toLowerCase() + n.slice(1);
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
 const STEPS = ['intro','guess','diag','choose','r0','r1','r2','r3','futures','debrief','reveal'];
 const NAMES = ['Start','Opening guess','Diagnose','Choose','Cycle 1','Cycle 2','Cycle 3','Cycle 4','1,000 futures','Debrief','The real case'];
@@ -24,10 +25,11 @@ function dots(){ const i = STEPS.indexOf(S.step); $('#dots').innerHTML = STEPS.m
 function render(){ dots(); ({intro, guess, diag, choose, futures, debrief, reveal}[S.step] || round)(); }
 
 function intro(){
-  app.innerHTML = `<section class="hero"><p class="mute" style="letter-spacing:.14em;text-transform:uppercase;font-size:14px">A strategy simulation. About eight minutes.</p>
+  app.innerHTML = `<section class="hero"><p class="mute" style="letter-spacing:.14em;text-transform:uppercase;font-size:14px">A strategy simulation. About ten minutes.</p>
   <h1>The Art of Sacrifice</h1>
-  <p>You are the new chief executive of ${C.company}, a large American phone company. You have four budget cycles and more good ideas than money.</p>
-  <p>Read the dashboard. Choose a strategy. Place your capital. Decide what your people are paid to hit. Then see 1,000 futures.</p>
+  <p>It is early 2014. The 4G network is nearly built, streaming video is growing and cable companies lead in home internet.</p>
+  <p>You are the new chief executive of ${C.company}, a large American phone company. You have four budget cycles, eight years and more good ideas than money.</p>
+  <p>Read the dashboard. Choose a strategy. Then fund it. Place your capital. Decide what your people are paid to hit. Then see 1,000 futures.</p>
   <button class="cta" data-go="guess">Take the chair</button></section>`;
 }
 function radios(name, items, sel){ return items.map(a=>`<label class="choice"><input type="radio" name="${name}" value="${a[0]}" ${sel===a[0]?'checked':''}><span>${esc(a[1])}</span></label>`).join(''); }
@@ -38,22 +40,22 @@ function guess(){
 }
 function diag(){
   const pick = C.diag.a.find(a=>a[0]===S.diag);
-  app.innerHTML = `<h2>${C.company} today</h2><p class="mute">A fictional company. The figures are illustrative.</p>
+  app.innerHTML = `<h2>${C.company} in early 2014</h2><p class="mute">A fictional company. The figures are illustrative.</p>
   <div class="grid g3" style="margin:14px 0">${C.tiles.map(x=>`<div class="card tile"><div class="k">${x[0]}</div><b>${x[1]}</b><div>${x[2]}</div></div>`).join('')}</div>
   <div class="card"><fieldset><legend>${C.diag.q}</legend>${radios('diag', C.diag.a, S.diag)}</fieldset>
   ${pick?`<div class="fb" role="status">${pick[2]} <span class="mute">This step is not scored.</span></div>`:''}
   <div class="foot"><span></span><button class="cta" data-go="choose" ${S.diag?'':'disabled'}>Choose a strategy</button></div></div>`;
 }
 function choose(){
-  app.innerHTML = `<h2>Where will you play, and how will you win?</h2><p class="mute">Carriers have chosen each of these. Your score will measure whether your capital and your measures match the one you pick.</p>
-  <div class="grid g4" style="margin:14px 0">${Object.keys(C.strategies).map(id=>{ const s=C.strategies[id]; return `<button class="strat ${S.strat===id?'sel':''}" data-strat="${id}" aria-pressed="${S.strat===id}"><h3>${s.name}</h3><div class="k">Where to play</div><div>${s.where}</div><div class="k">How to win</div><div>${s.how}</div></button>`; }).join('')}</div>
+  app.innerHTML = `<h2>Where will you play, and how will you win?</h2><p class="mute">Each was a live option for a carrier in 2014. Pick one. Then you have to fund it: your score will measure whether your capital and your measures match your choice.</p>
+  <div class="grid g3" style="margin:14px 0">${Object.keys(C.strategies).map(id=>{ const s=C.strategies[id]; return `<button class="strat ${S.strat===id?'sel':''}" data-strat="${id}" aria-pressed="${S.strat===id}"><h3>${s.name}</h3><div class="k">Where to play</div><div>${s.where}</div><div class="k">How to win</div><div>${s.how}</div></button>`; }).join('')}</div>
   <div class="foot"><span class="mute">Each chip you place later is ${bil(1)}.</span><button class="cta" data-go="r0" ${S.strat?'':'disabled'}>Open the first budget</button></div>`;
 }
 function startRound(){
   const prev = S.rounds[t()-1]; S.cur = M.emptyAlloc();
-  if (prev){ ['fiber','wireless','legacy','dividend','debt'].forEach(o=>S.cur[o]=prev[o]); S.curK = S.kpis[t()-1].slice();
-    let over = -left(); const order = ['debt','legacy','dividend','wireless','fiber']; let i = 0;
-    while (over>0 && i<200){ const o = order[i%5]; if (S.cur[o]>0){ S.cur[o]--; over--; } i++; }
+  if (prev){ ['fiber','wireless','enterprise','legacy','dividend','debt'].forEach(o=>S.cur[o]=prev[o]); S.curK = S.kpis[t()-1].slice();
+    let over = -left(); const order = ['debt','legacy','dividend','enterprise','wireless','fiber']; let i = 0;
+    while (over>0 && i<300){ const o = order[i%6]; if (S.cur[o]>0){ S.cur[o]--; over--; } i++; }
     S.cur.debt = Math.min(S.cur.debt, led().debtStart); }
 }
 function round(){
@@ -61,15 +63,15 @@ function round(){
   const stepper = o => { const max = o==='debt' ? L.debtStart : 99;
     return `<div class="row"><div><div class="nm">${C.opts[o].name}</div><div class="nt">${C.opts[o].note}</div><div class="chips">${'<i class="chip"></i>'.repeat(a[o])}</div></div>
     <div class="step"><button data-dec="${o}" aria-label="Less ${C.opts[o].name}" ${a[o]<=0?'disabled':''}>&minus;</button><div class="n" id="n-${o}">${a[o]}</div><button data-inc="${o}" aria-label="More ${C.opts[o].name}" ${(l<=0||a[o]>=max)?'disabled':''}>+</button></div></div>`; };
-  const deal = o => { const owned = o==='ptv'?L.ptvOwned:L.mediaOwned, open = C.dealRounds[o].indexOf(i)>=0, on = a[o]>0;
+  const deal = o => { const owned = L.owned[o], open = C.dealRounds[o].indexOf(i)>=0, on = a[o]>0;
     const lab = owned ? 'Owned' : (!open ? 'Not for sale' : (on ? 'Buying' : 'Buy for ' + M.DEAL_COST[o]));
-    return `<div class="row"><div><div class="nm">${C.opts[o].name}</div><div class="nt">${C.opts[o].note} Costs ${M.DEAL_COST[o]} chips.</div><div class="chips">${'<i class="chip"></i>'.repeat(a[o])}</div></div>
+    return `<div class="row"><div><div class="nm">${C.opts[o].name}</div><div class="nt">Costs ${M.DEAL_COST[o]} chips. ${C.opts[o].note}</div><div class="chips">${'<i class="chip"></i>'.repeat(a[o])}</div></div>
     <button class="deal ${on?'on':''}" data-deal="${o}" aria-pressed="${on}" ${(owned||!open)?'disabled':''}>${lab}</button></div>`; };
   app.innerHTML = `<div class="news"><span class="yr">${nw[0]}</span><span>${nw[1]}</span></div>
   <div class="board"><div class="card"><h2>Place your capital</h2>
     <p class="mute">You have ${plural(L.base,'chip')} this cycle. Each chip is ${bil(1)}.${L.drag?` Interest on your debt took ${plural(L.drag,'chip')}.`:''}${L.cash?` Acquired businesses added ${plural(L.cash,'chip')}.`:''}</p>
     <div class="meter" style="margin:4px 0 8px"><div class="left ${l<0?'bad':(l===0?'ok':'')}" id="left">${l<0?`Over by ${-l}. Remove chips or borrow.`:(l===0?'All capital placed':`${plural(l,'chip')} left to place`)}</div></div>
-    ${stepper('fiber')}${stepper('wireless')}${stepper('legacy')}${deal('ptv')}${deal('media')}${stepper('dividend')}${stepper('debt')}
+    ${C.rows.map(o=>M.DEALS.indexOf(o)>=0?deal(o):stepper(o)).join('')}
     <div class="borrow"><div class="row"><div><div class="nm">Borrow</div><div class="nt">Up to ${M.START.borrowMax} more chips this cycle. It lets you fund more and choose less.</div><div class="chips">${'<i class="chip b"></i>'.repeat(a.borrow)}</div></div>
     <div class="step"><button data-dec="borrow" aria-label="Borrow less" ${a.borrow<=0?'disabled':''}>&minus;</button><div class="n" id="n-borrow">${a.borrow}</div><button data-inc="borrow" aria-label="Borrow more" ${a.borrow>=M.START.borrowMax?'disabled':''}>+</button></div></div></div>
   </div>
@@ -78,6 +80,7 @@ function round(){
     <div class="card"><h3>${C.company} territory</h3><canvas id="map" height="190"></canvas>
       <div class="stat"><span>Your strategy</span><b>${C.strategies[S.strat].name}</b></div>
       <div class="stat"><span>Debt</span><b>${bil(L.debtStart + a.borrow - a.debt)}</b></div>
+      <div class="stat"><span>Companies owned</span><b>${M.DEALS.filter(d=>L.owned[d]).map(d=>({ptv:'Satellite TV',media:'Studio',cable:'Cable',abroad:'Foreign carrier'})[d]).join(', ') || 'None'}</b></div>
       ${S.strip.length?'<canvas id="strip" height="'+(34+S.strip.length*26)+'"></canvas>':''}</div>
     <button class="cta" id="commit" data-commit="1" ${(l===0&&S.curK.length===3)?'':'disabled'} style="justify-self:stretch">${l!==0?'Place all your capital':(S.curK.length!==3?'Pick three measures':'Commit this cycle')}</button>
   </div></div>`;
@@ -99,7 +102,7 @@ function drawMap(){
 const AX = [55, 185];
 function drawStrip(c, strip){
   const [x,w,h] = ctx2d(c); const px = v => 78 + (Math.max(AX[0],Math.min(AX[1],v))-AX[0])/(AX[1]-AX[0])*(w-90);
-  x.font = '12px Inter'; x.fillStyle = '#9aa8be'; x.fillText('Year 8 value if you repeat this cycle. 100 is status quo.', 0, 12);
+  x.font = '12px Inter'; x.fillStyle = '#9aa8be'; x.fillText('Value at the end of 2021 if you repeat this cycle. 100 is status quo.', 0, 12);
   x.strokeStyle = '#9aa8be'; x.setLineDash([3,3]); x.beginPath(); x.moveTo(px(100),18); x.lineTo(px(100),h); x.stroke(); x.setLineDash([]);
   strip.forEach((s,i)=>{ const y = 34+i*26; x.fillStyle = '#9aa8be'; x.fillText('Cycle '+(i+1), 0, y+4);
     x.fillStyle = 'rgba(224,180,90,.35)'; x.fillRect(px(s.p10), y-6, Math.max(2,px(s.p90)-px(s.p10)), 12);
@@ -109,7 +112,7 @@ function commit(){
   const L = led(), a = Object.assign({}, S.cur), k = S.curK.slice(), i = t();
   const ms = memos(a, k, S.strat, L); S.memoLog.push(ms); S.rounds.push(a); S.kpis.push(k);
   const P = M.project(S.rounds, S.kpis); const sim = M.simulate(P.R, P.K, S.strat, S.fut, S.base); S.strip.push(sim);
-  ov.innerHTML = `<div class="overlay"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mh"><h2 id="mh" tabindex="-1">What your people did in ${C.news[i][0].toLowerCase()}</h2>
+  ov.innerHTML = `<div class="overlay"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mh"><h2 id="mh" tabindex="-1">What your people did in ${C.news[i][0]}</h2>
   ${ms.map(m=>`<div class="memo ${m.tag}"><div class="t">${C.kpis[m.id]} ${m.tag==='fits'?'<i>Fits your strategy</i>':(m.tag==='conflicts'?'<i>Works against your strategy</i>':'')}</div>${m.text}</div>`).join('')}
   <canvas id="strip2" height="${34+S.strip.length*26}" style="margin-top:14px"></canvas>
   <div class="foot"><span class="mute small">The bar runs from the 10th to the 90th percentile of 1,000 futures.</span><button class="cta" data-next="1">${i<3?'Next cycle':'Run 1,000 futures'}</button></div></div></div>`;
@@ -119,13 +122,17 @@ function next(){ ov.innerHTML = ''; if (t()<4){ startRound(); go('r'+t()); } els
 
 function dice(f){
   const o = [['Customers leaving pay TV', f.cord<.14?'slowly':(f.cord<.25?'steadily':'fast')], ['Wireless price war', f.war<.017?'mild':(f.war<.034?'moderate':'severe')],
-    ['Fiber sign ups', f.take<1.8?'low':(f.take<2.4?'typical':'high')], ['Interest rates', f.rates<.12?'barely rose':(f.rates<.24?'rose':'rose sharply')]];
-  if (S.rounds.some(a=>a.media>0)){ const m = f.hits.reduce((p,c)=>p+c,0)/4; o.push(['Studio releases', m<.9?'missed':(m<1.05?'were mixed':'were hits')]); }
+    ['Fiber sign ups', f.take<.87?'low':(f.take<1.15?'typical':'high')], ['Interest rates', f.rates<.12?'barely rose':(f.rates<.24?'rose':'rose sharply')]];
+  const any = o => S.rounds.some(a=>a[o]>0), avg = x => x.reduce((p,c)=>p+c,0)/4;
+  if (any('enterprise')) o.push(['Business demand', f.ent<.8?'low':(f.ent<1.15?'typical':'high')]);
+  if (any('cable')) o.push(['Cable deal', f.blocked?'blocked by regulators':'approved']);
+  if (any('abroad')) o.push(['Foreign currency', avg(f.fx)<-.07?'fell':(avg(f.fx)<.07?'held':'rose')]);
+  if (S.rounds.some(a=>a.media>0)){ const m = avg(f.hits); o.push(['Studio releases', m<-.07?'missed':(m<.07?'were mixed':'were hits')]); }
   return o;
 }
 function futures(){
   const s = S.sim;
-  app.innerHTML = `<h2>Your plan in 1,000 futures</h2><p class="mute">Each dot is one possible year 8. The futures differ in how fast customers leave pay TV, how hard rivals cut prices, how many homes sign up for fiber, how far rates rise and how the studio performs.</p>
+  app.innerHTML = `<h2>Your plan in 1,000 futures</h2><p class="mute">Each dot is one possible end of 2021. The futures differ in how fast customers leave pay TV, how hard rivals cut prices, how many homes and businesses sign up, how far rates rise, how currencies move, how the studio performs and whether regulators block the cable deal.</p>
   <div class="card"><canvas id="hist" height="330"></canvas>
   <div class="grid g4" style="margin-top:10px"><div class="tile"><div class="k">Weak future, 10th percentile</div><b>${Math.round(s.p10)}</b></div><div class="tile"><div class="k">Middle future</div><b>${Math.round(s.p50)}</b></div><div class="tile"><div class="k">Strong future, 90th percentile</div><b>${Math.round(s.p90)}</b></div><div class="tile"><div class="k">Beat the status quo plan</div><b>${pct(s.beat)}</b></div></div>
   <div id="drawbox" class="fb" style="display:none" role="status"></div>
@@ -162,12 +169,12 @@ function ord(n){ n = Math.max(1, Math.min(99, n)); const s = ['th','st','nd','rd
 
 function moves(co){
   const out = [], cyc = a => a.length===1 ? 'cycle '+a[0] : 'cycles '+a.slice(0,-1).join(', ')+' and '+a[a.length-1];
-  const bad = []; S.rounds.forEach((a,i)=>{ if ((a.fiber+a.wireless)>2 && (S.kpis[i].indexOf('margin')>=0 || S.kpis[i].indexOf('fcf')>=0)) bad.push(i+1); });
+  const bad = []; S.rounds.forEach((a,i)=>{ if ((a.fiber+a.wireless+a.enterprise)>2 && (S.kpis[i].indexOf('margin')>=0 || S.kpis[i].indexOf('fcf')>=0)) bad.push(i+1); });
   if (bad.length) out.push(`In ${cyc(bad)} you funded the network and paid your people on margin or cash flow. They slowed the build to hit the measure.`);
   if (co.borrowed>0){ const drag = M.ledger(S.rounds).reduce((p,l)=>p+l.drag,0); out.push(`You borrowed ${plural(co.borrowed,'chip')} over four cycles. Interest took ${plural(drag,'chip')} of your capital. You ended with ${bil(co.endDebt)} of debt.`); }
   const cut = []; S.rounds.forEach((a,i)=>{ if (a.dividend<M.START.divExpected) cut.push(i+1); });
   if (cut.length) out.push(`You paid less than the expected dividend in ${cyc(cut)}. Shareholders marked the company down, and the chips went elsewhere.`);
-  ['ptv','media'].forEach(o=>{ S.rounds.forEach((a,i)=>{ if (a[o]>0 && M.FIT[S.strat][o]===0) out.push(`In cycle ${i+1} you chose to ${C.opts[o].name.toLowerCase()}. Your stated strategy was ${C.strategies[S.strat].name}.`); }); });
+  M.DEALS.forEach(o=>{ S.rounds.forEach((a,i)=>{ if (a[o]>0 && M.FIT[S.strat][o]===0) out.push(`In cycle ${i+1} you chose to ${lc(C.opts[o].name)}. Your stated strategy was ${C.strategies[S.strat].name}.`); }); });
   const dead = []; S.memoLog.forEach((ms,i)=>ms.forEach(m=>{ if (/Nobody could act/.test(m.text)) dead.push(i+1); }));
   if (dead.length) out.push(`In ${cyc([...new Set(dead)])} one of your three measures tracked a business you had not funded.`);
   if (!out.length) out.push('Your capital and your measures pointed the same way in every cycle.');
@@ -177,18 +184,21 @@ function debrief(){
   const co = M.coherence(S.rounds, S.kpis, S.strat); S.co = co;
   if (!S.self){ app.innerHTML = `<section class="card" style="max-width:760px;margin:8vh auto"><h2>Before the debrief</h2><fieldset><legend>How well did your capital match your strategy?</legend>${radios('self', [['hi','Closely'],['mid','Partly'],['lo','Loosely']], null)}</fieldset></section>`; return; }
   const v = S.sim.vals[S.drawn], good = v>=100, coh = co.score>=70;
-  const quad = (coh?'Coherent plan. ':'Scattered plan. ') + (good?'Good draw.':'Bad draw.');
-  const funded = M.OPTS.filter(o=>co.tot[o]>0), g = C.guess.a.find(a=>a[0]===S.guess);
+  const quad = (coh?'Aligned plan. ':'Unaligned plan. ') + (good?'Good draw.':'Bad draw.');
+  const funded = M.OPTS.filter(o=>co.tot[o]>0), g = C.guess.a.find(a=>a[0]===S.guess), st = C.strategies[S.strat];
+  const coreNames = M.OPTS.filter(o=>M.FIT[S.strat][o]===1).map(o=>lc(C.opts[o].name));
   const bar = (n, v, max) => `<div class="b"><span>${n}</span><div class="tr"><i style="width:${Math.round(v/max*100)}%"></i></div><span>${Math.round(v)} of ${max}</span></div>`;
+  const n1 = Object.keys(C.sources).indexOf('mck')+1;
   app.innerHTML = `<h2>Debrief</h2>
-  <div class="grid g2"><div class="card"><div class="tile"><div class="k">Coherence score</div></div><div class="big">${co.score}</div>
-    <p class="mute">You rated the match as ${({hi:'close',mid:'partial',lo:'loose'})[S.self]}. The score measures fit between your strategy, your capital and your measures. It does not say which strategy is right.</p>
-    <div class="bars">${bar('Capital fits strategy', co.pts.fit, 40)}${bar('Focus', co.pts.focus, 25)}${bar('Measures fit', co.pts.measures, 20)}${bar('Balance sheet', co.pts.balance, 15)}</div></div>
+  <div class="grid g2"><div class="card"><div class="tile"><div class="k">Share of your capital that went to your strategy</div></div><div class="big">${Math.round(co.core*100)}%</div>
+    <p>You chose ${st.name}. Its core is ${coreNames.join(' and ')}. ${co.funded ? 'You funded it.' : 'It got less than half your capital. In this model a strategy that is announced and not funded earns less on every core chip.'}</p>
+    <p class="mute">You rated the match as ${({hi:'close',mid:'partial',lo:'loose'})[S.self]}. Alignment score: <b style="color:var(--ink)">${co.score} of 100</b>. It measures fit between your strategy, your capital and your measures. It does not say which strategy is right.</p>
+    <div class="bars">${bar('Capital fits strategy', co.pts.fit, 45)}${bar('Measures fit', co.pts.measures, 25)}${bar('Focus', co.pts.focus, 15)}${bar('Balance sheet', co.pts.balance, 15)}</div></div>
    <div class="card"><h3>${quad}</h3>
     <p>Your plan beat the status quo plan in ${pct(S.sim.beat)} of 1,000 futures. The future you drew came in at ${Math.round(v)}.</p>
-    <h3 style="margin-top:14px">What you said no to</h3><div>${co.said_no.length ? co.said_no.map(o=>`<span class="pill no">${C.opts[o].name}</span>`).join('') : '<span class="pill">Nothing. You funded all seven.</span>'}</div>
+    <h3 style="margin-top:14px">What you said no to</h3><div>${co.said_no.length ? co.said_no.map(o=>`<span class="pill no">${C.opts[o].name}</span>`).join('') : '<span class="pill">Nothing. You funded all ten.</span>'}</div>
     <h3 style="margin-top:14px">What you funded</h3><div>${funded.map(o=>`<span class="pill">${C.opts[o].name}: ${co.tot[o]}</span>`).join('')}</div>
-    <p class="mute" style="margin-top:10px">At the start you said a company should fund “${g[1].toLowerCase()}.” You funded ${funded.length} of 7 options. Your two largest took ${Math.round(co.top2*100)}% of your capital.</p></div></div>
+    <p class="mute" style="margin-top:10px">At the start you said ${g[1].toLowerCase()} of a budget should move to fund a new strategy. Your first budget moved ${Math.round(co.moved*100)}% away from the status quo plan. ${C.mck}<sup><a href="${C.sources.mck[1]}" target="_blank" rel="noopener">[${n1}]</a></sup></p></div></div>
   <div class="card" style="margin-top:16px"><h3>Your moves</h3>${moves(co).map(m=>`<div class="memo">${m}</div>`).join('')}
     <p style="margin-top:14px"><b>${C.transfer}</b></p>
     <div class="foot"><button class="ghost" data-about="1">How the score and the model work</button><button class="cta" data-go="reveal">See the real case</button></div></div>`;
@@ -203,9 +213,11 @@ function reveal(){
   <div class="card"><h3>Side by side</h3><table><tr><th></th><th>You</th><th>AT&amp;T</th></tr>
    <tr><td>Satellite TV</td><td>${own('ptv')}</td><td>Bought DIRECTV in 2015</td></tr>
    <tr><td>Film and TV studio</td><td>${own('media')}</td><td>Bought Time Warner in 2018</td></tr>
+   <tr><td>Cable operator</td><td>${own('cable')}</td><td>Did not buy one</td></tr>
+   <tr><td>Foreign carrier</td><td>${own('abroad')}</td><td>Had acquired two wireless carriers in Mexico by July 2015</td></tr>
    <tr><td>Debt</td><td>${bil(M.START.debt)} to ${bil(co.endDebt)}</td><td>$82.1 billion total debt in 2014. $180.4 billion net debt in June 2018.</td></tr>
    <tr><td>Dividend</td><td>${cut?'Paid less than expected at least once':'Paid in full every cycle'}</td><td>$1.85 a share in 2014. $2.08 before the 2022 change. $1.11 after.</td></tr>
-   <tr><td>Later</td><td>${co.said_no.length ? 'Said no to ' + plural(co.said_no.length,'option') : 'Funded all seven options'}</td><td>Exited both businesses between 2021 and 2024 and named 5G and fiber as its focus.</td></tr></table>
+   <tr><td>Later</td><td>${co.said_no.length ? 'Said no to ' + plural(co.said_no.length,'option') : 'Funded all ten options'}</td><td>Exited satellite TV and the studio between 2021 and 2024 and named 5G and fiber as its focus.</td></tr></table>
    <p class="mute small" style="margin-top:10px">Sources are numbered and listed under About. Total debt and net debt are different measures.</p>
    <div class="foot"><button class="ghost" data-about="1">About and sources</button><button class="cta" data-again="1">Play again</button></div></div></div>`;
 }
@@ -213,11 +225,12 @@ function about(){
   const src = Object.keys(C.sources).map((k,i)=>{ const s = C.sources[k]; return `<li>${esc(s[0])}${s[1]?`. <a href="${s[1]}" target="_blank" rel="noopener">Link</a>`:''}</li>`; }).join('');
   ov.innerHTML = `<div class="overlay"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="ah"><h2 id="ah" tabindex="-1">About this simulation</h2>
   <h3>What is real</h3><p>The final screen reports AT&amp;T's public record from company filings and press releases. Every figure there has a numbered source below.</p>
-  <h3>What is modeled</h3><p>${C.company} is fictional. Its dashboard, the chip values and the 1,000 futures are an illustrative model written for this demo. The model is not a forecast and not a model of AT&amp;T. Its main assumptions: fiber returns about twice its cost when it has time to mature. Wireless needs two chips a cycle to hold its value. Legacy spending returns less than it costs. Pay TV loses between 4% and 36% of its value each cycle. A studio is worth more to a company whose strategy is built around it. Debt above ten chips gets more expensive when rates rise. Cutting the dividend costs value once and frees capital after that.</p>
+  <h3>What is modeled</h3><p>${C.company} is fictional. Its dashboard, the chip values, the deal terms and the 1,000 futures are an illustrative model written for this demo. The model is not a forecast and not a model of AT&amp;T. Your budget each cycle does not vary by future.</p>
+  <h3>The model rewards alignment, by design</h3><p>Each of the six strategies has a similar middle result when it is fully funded and its measures match. That is a design choice. It treats the questions of 2014 as open, and the model does not use what happened afterward. An option earns its full return when it is core to your strategy, 85% when it supports the strategy and 65% as a side bet. A strategy that gets less than half your capital earns 12% less on its core options. Other assumptions: fiber and business services return about twice their cost when they have time to mature. Wireless needs two chips a cycle to hold its value. Legacy spending returns less than it costs. Pay TV loses up to 30% of its value each cycle. Regulators block the cable deal in 15% of futures. Debt above ten chips gets more expensive when rates rise. Cutting the dividend costs value once and frees capital after that.</p>
   <h3>How your people respond</h3><p>The staff responses are illustrative. They follow the pattern Steven Kerr described in 1975: people do what is rewarded.</p>
-  <h3>How the score works</h3><p>Capital fits strategy, 40 points. Focus, 25 points, full marks when your two largest uses take 65% of capital. Measures fit strategy, 20 points. Balance sheet, 15 points. The fit tables are the author's judgment, built on the strategy cascade in Playing to Win and on Porter's argument that strategy requires trade-offs. Strategy has no computable right answer, and reasonable people would weight these differently.</p>
+  <h3>How the score works</h3><p>Capital fits strategy, 45 points. Measures fit strategy, 25 points. Focus, 15 points, full marks when your two largest uses take 60% of capital. Balance sheet, 15 points. The fit tables are the author's judgment, built on the strategy cascade in Playing to Win and on Porter's argument that strategy requires trade-offs. Strategy has no computable right answer, and reasonable people would weight these differently.</p>
   <h3>Sources</h3><ol>${src}</ol>
-  <p class="mute small">Built by José Antonio Bowen with Claude Fable 5.2 as an eight minute demo for <a href="https://weteachwithai.com/vibe-coding/" target="_blank" rel="noopener">weteachwithai.com</a>. No tracking. Nothing you enter leaves this page.</p>
+  <p class="mute small">Built by José Antonio Bowen with Claude Fable 5.2 as a ten minute demo for <a href="https://weteachwithai.com/vibe-coding/" target="_blank" rel="noopener">weteachwithai.com</a>. No tracking. Nothing you enter leaves this page.</p>
   <div class="foot"><span></span><button class="cta" data-close="1">Close</button></div></div></div>`;
   $('#ah').focus();
 }

@@ -30,6 +30,9 @@ const path = require('path'); const out = path.join(__dirname, 'out'); require('
     await click('#drawBtn'); await p.waitForTimeout(200); await shot('drawn'); await click('#toDeb');
     await p.locator('label.choice').nth(1).click(); await shot('debrief'); await click('[data-go=reveal]'); await shot('reveal');
     await click('#aboutBtn'); await shot('about'); await click('[data-close]');
+    await click('[data-again]'); await p.evaluate(() => { const R = o => Object.assign(__demo.model.emptyAlloc(), o);
+      __demo.play({ guess:'20', strat:'network', kpis:[['rev','margin','video']], rounds:[R({ptv:8,wireless:3,dividend:3,borrow:4}), R({abroad:8,wireless:2,dividend:1}), R({wireless:3,fiber:2,legacy:2,dividend:3,debt:2}), R({wireless:3,fiber:2,legacy:1,dividend:3,debt:2})] }); });
+    await click('#drawBtn'); await click('#toDeb'); await p.locator('label.choice').nth(0).click(); await shot('debrief-unaligned'); await click('[data-go=reveal]'); await shot('reveal2');
     const st = await p.evaluate(() => { const s = __demo.state(); return { rounds: s.rounds, co: s.co, sim: [s.sim.p10, s.sim.p50, s.sim.p90, s.sim.beat], l3: 0 }; });
     console.log(name, 'errors:', errs.length ? errs : 'none', 'r3 start:', l3, JSON.stringify(st));
     await p.close();
