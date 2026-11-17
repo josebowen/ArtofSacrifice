@@ -76,6 +76,8 @@ a{color:var(--cy)}sup a{text-decoration:none;font-size:12px}
 .foot{display:flex;gap:12px;justify-content:space-between;align-items:center;margin-top:18px;flex-wrap:wrap}
 @media (max-width:900px){main{padding:14px}.board,.g2,.g3,.g4{grid-template-columns:1fr}.stepname{display:none}.top{padding:10px 14px;gap:10px}.brand{font-size:16px}.bars .b{grid-template-columns:110px 1fr 48px}.tl{grid-template-columns:56px 1fr}.deal{min-width:104px}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+#gave{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line,#444);background:transparent;color:inherit;font:inherit}#gave option{color:#111}.ef{margin-top:8px}
 </style></head>
 <body><header class="top"><div class="brand">The Art of Sacrifice</div><div class="dots" id="dots" aria-hidden="true"></div><div class="stepname" id="stepname"></div><button class="ghost" id="aboutBtn">About</button></header>
 <main id="app"></main><div id="ov"></div>
@@ -242,7 +244,7 @@ const C = {
   },
   guess: {
     q: 'Before you start. A company announces a new strategy. How much of next year’s budget should move to fund it?',
-    a: [['5', 'About 5%'], ['20', 'About 20%'], ['50', 'About 50% or more']]
+    a: [['2', 'About 2%'], ['5', 'About 5%'], ['10', 'About 10%'], ['20', 'About 20%']]
   },
   tiles: [
     ['Wireless', '54% of revenue', 'Subscribers are growing 1% a year. A challenger just cut its prices.'],
@@ -313,6 +315,60 @@ function memos(a, k, strat, ctx){
 }
 globalThis.C = C; globalThis.memos = memos;
 
+// Effort report: time on open decisions, time spent working after a wrong answer, time against
+// confidence and correctness, and optional work. A very rough stand-in for effort, not a measure of learning.
+// EF.watch(fn): fn returns the label of the decision now open, or null.
+// EF.mark({ ok, conf }): how the decision just committed turned out (conf 0 guessing, 1 fairly sure, 2 very sure).
+// EF.wrong(): a wrong answer was just shown. EF.resolved(): the player has answered again or moved on.
+// EF.extra(label): one piece of optional work or a voluntary return to the evidence.
+const EF = (() => {
+  const items = [], opt = {}, CONF = ['Guessing', 'Fairly sure', 'Very sure'];
+  let cur = null, prev = null, fn = null, last = Date.now(), act = Date.now(), seen = new Set(), aw = null; const after = [];
+  const live = (n) => !document.hidden && n - act < 90000;
+  const tick = () => {
+    const n = Date.now(); let lab = null; try { lab = fn ? fn() : null; } catch (e) { }
+    if (cur && lab !== cur.label) { prev = cur; cur = null; }
+    if (lab && !cur) { cur = items.find((i) => i.label === lab); if (!cur) { cur = { label: lab, ms: 0, rev: 0 }; items.push(cur); } seen = new Set(); }
+    const d = Math.min(n - last, 2000);
+    if (cur && live(n)) cur.ms += d;
+    if (aw && live(n)) aw.ms += d;
+    last = n;
+  };
+  setInterval(tick, 400);
+  ['pointerdown', 'keydown', 'input'].forEach((e) => addEventListener(e, () => { act = Date.now(); }, true));
+  addEventListener('click', (e) => {
+    const t = e.target.closest && e.target.closest('input[type=radio],label,.pick,.pred,.chip,.pick button,.opt'); if (!t) return; tick(); if (!cur) return;
+    const i = t.matches('label') ? t.querySelector('input') : t; if (!i) return;
+    const k = i.name || i.dataset.k || (i.parentElement && (i.parentElement.id || i.parentElement.getAttribute('aria-label'))) || 'x';
+    if (seen.has(k)) cur.rev++; else seen.add(k);
+  }, true);
+  const mmss = (ms) => { const s = Math.round(ms / 1000); return (s >= 60 ? Math.floor(s / 60) + ' min ' : '') + (s % 60) + ' s'; };
+  const avg = (a) => (a.length ? mmss(a.reduce((x, i) => x + i.ms, 0) / a.length) : '');
+  const sum = () => {
+    tick(); const d = items.filter((i) => i.ms > 400), tot = d.reduce((a, i) => a + i.ms, 0), top = d.slice().sort((a, b) => b.ms - a.ms)[0], rev = d.reduce((a, i) => a + i.rev, 0), ex = Object.entries(opt);
+    const m = items.filter((i) => i.ok !== undefined), right = m.filter((i) => i.ok), wrong = m.filter((i) => !i.ok);
+    const byC = CONF.map((c, k) => { const g = m.filter((i) => i.conf === k); return g.length ? `${c}: ${g.filter((i) => i.ok).length} of ${g.length} right, about ${avg(g)} each` : ''; }).filter(Boolean);
+    const aft = after.filter((a) => a.ms > 300);
+    return { d, tot, top, rev, ex, right, wrong, byC, aft };
+  };
+  const lines = () => {
+    const { d, tot, top, rev, ex, right, wrong, byC, aft } = sum(); if (!d.length) return [];
+    const L = [`Time on decisions: ${mmss(tot)} across ${d.length} ${d.length === 1 ? 'decision' : 'decisions'}.${top ? ` Longest: ${top.label} (${mmss(top.ms)}).` : ''}`];
+    if (aft.length) L.push(`After a wrong answer you kept working ${aft.length} ${aft.length === 1 ? 'time' : 'times'}, for ${mmss(aft.reduce((a, i) => a + i.ms, 0))} in all, before answering again or moving on.`);
+    if (right.length && wrong.length) L.push(`Decisions you got right took about ${avg(right)} each. Decisions you got wrong took about ${avg(wrong)} each.`);
+    if (byC.length) L.push(`Time against confidence. ${byC.join('. ')}.`);
+    L.push(`Answers changed before committing: ${rev}. Optional work and returns to the evidence: ${ex.length ? ex.map(([k, n]) => `${k}${n > 1 ? ' ×' + n : ''}`).join(', ') : 'none'}.`);
+    return L;
+  };
+  return {
+    watch(f) { fn = f; }, extra(k) { opt[k] = (opt[k] || 0) + 1; }, tick, items, opt, after,
+    mark(o) { tick(); const it = cur || prev; if (it && it.ok === undefined) Object.assign(it, o); },
+    wrong() { tick(); if (!aw) { aw = { ms: 0 }; after.push(aw); } }, resolved() { tick(); aw = null; },
+    html() { const L = lines(); return L.length ? `<h3>Effort</h3>${L.map((l) => `<p class="small ef">${l.replace(/^([^:.]{3,40}:)/, '<b>$1</b>')}</p>`).join('')}<p class="small ef hint">The clock runs only while a decision is open and you are active. Time is a very rough stand-in for effort. It is not a measure of learning, and it is not scored.</p>` : ''; },
+    text() { const L = lines(); return L.length ? 'Effort (a very rough stand-in). ' + L.join(' ') : ''; },
+  };
+})();
+
 (function(){
 const M = Model, $ = s => document.querySelector(s), app = $('#app'), ov = $('#ov');
 const Q = new URLSearchParams(location.search), FAST = Q.has('fast') || matchMedia('(prefers-reduced-motion:reduce)').matches;
@@ -367,7 +423,7 @@ function choose(){
   <div class="foot"><span class="mute">Each chip you place later is ${bil(1)}.</span><button class="cta" data-go="r0" ${S.strat?'':'disabled'}>Open the first budget</button></div>`;
 }
 function startRound(){
-  const prev = S.rounds[t()-1]; S.cur = M.emptyAlloc();
+  const prev = S.rounds[t()-1]; S.cur = M.emptyAlloc(); S.curGave = ''; S.gave = S.gave || [];
   if (prev){ ['fiber','wireless','enterprise','legacy','dividend','debt'].forEach(o=>S.cur[o]=prev[o]); S.curK = S.kpis[t()-1].slice();
     let over = -left(); const order = ['debt','legacy','dividend','enterprise','wireless','fiber']; let i = 0;
     while (over>0 && i<300){ const o = order[i%6]; if (S.cur[o]>0){ S.cur[o]--; over--; } i++; }
@@ -397,7 +453,9 @@ function round(){
       <div class="stat"><span>Debt</span><b>${bil(L.debtStart + a.borrow - a.debt)}</b></div>
       <div class="stat"><span>Companies owned</span><b>${M.DEALS.filter(d=>L.owned[d]).map(d=>({ptv:'Satellite TV',media:'Studio',cable:'Cable',abroad:'Foreign carrier'})[d]).join(', ') || 'None'}</b></div>
       ${S.strip.length?'<canvas id="strip" height="'+(34+S.strip.length*26)+'"></canvas>':''}</div>
-    <button class="cta" id="commit" data-commit="1" ${(l===0&&S.curK.length===3)?'':'disabled'} style="justify-self:stretch">${l!==0?'Place all your capital':(S.curK.length!==3?'Pick three measures':'Commit this cycle')}</button>
+    <div class="card"><h3>Name the sacrifice</h3><p class="mute small">Before you commit: what is the main thing you are giving up this cycle?</p>
+      <select id="gave" name="gave" aria-label="What you are giving up this cycle"><option value="">Choose one</option>${C.rows.map(o=>`<option value="${o}" ${S.curGave===o?'selected':''}>${C.opts[o].name}</option>`).join('')}<option value="none" ${S.curGave==='none'?'selected':''}>Nothing. I am funding some of everything.</option></select></div>
+    <button class="cta" id="commit" data-commit="1" ${(l===0&&S.curK.length===3&&S.curGave)?'':'disabled'} style="justify-self:stretch">${l!==0?'Place all your capital':(S.curK.length!==3?'Pick three measures':(!S.curGave?'Name the sacrifice':'Commit this cycle'))}</button>
   </div></div>`;
   drawMap(); if (S.strip.length) drawStrip($('#strip'), S.strip);
 }
@@ -425,7 +483,7 @@ function drawStrip(c, strip){
 }
 function commit(){
   const L = led(), a = Object.assign({}, S.cur), k = S.curK.slice(), i = t();
-  const ms = memos(a, k, S.strat, L); S.memoLog.push(ms); S.rounds.push(a); S.kpis.push(k);
+  const ms = memos(a, k, S.strat, L); S.memoLog.push(ms); S.rounds.push(a); S.kpis.push(k); (S.gave = S.gave || []).push({ o: S.curGave, chips: S.curGave==='none' ? null : a[S.curGave] });
   const P = M.project(S.rounds, S.kpis); const sim = M.simulate(P.R, P.K, S.strat, S.fut, S.base); S.strip.push(sim);
   ov.innerHTML = `<div class="overlay"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mh"><h2 id="mh" tabindex="-1">What your people did in ${C.news[i][0]}</h2>
   ${ms.map(m=>`<div class="memo ${m.tag}"><div class="t">${C.kpis[m.id]} ${m.tag==='fits'?'<i>Fits your strategy</i>':(m.tag==='conflicts'?'<i>Works against your strategy</i>':'')}</div>${m.text}</div>`).join('')}
@@ -514,6 +572,7 @@ function debrief(){
     <h3 style="margin-top:14px">What you said no to</h3><div>${co.said_no.length ? co.said_no.map(o=>`<span class="pill no">${C.opts[o].name}</span>`).join('') : '<span class="pill">Nothing. You funded all ten.</span>'}</div>
     <h3 style="margin-top:14px">What you funded</h3><div>${funded.map(o=>`<span class="pill">${C.opts[o].name}: ${co.tot[o]}</span>`).join('')}</div>
     <p class="mute" style="margin-top:10px">At the start you said ${g[1].toLowerCase()} of a budget should move to fund a new strategy. Your first budget moved ${Math.round(co.moved*100)}% away from the status quo plan. ${C.mck}<sup><a href="${C.sources.mck[1]}" target="_blank" rel="noopener">[${n1}]</a></sup></p></div></div>
+  <div class="card" style="margin-top:16px"><h3>What you said you were giving up</h3>${(S.gave||[]).length ? S.gave.map((g,i)=>`<div class="memo">${C.news[i][0]}. You said: <b>${g.o==='none' ? 'nothing' : lc(C.opts[g.o].name)}</b>. ${g.o==='none' ? `You funded ${M.OPTS.filter(o=>S.rounds[i][o]>0).length} of ${M.OPTS.length} lines that cycle.` : (g.chips>0 ? `You still put ${plural(g.chips,'chip')} there.` : 'You put no chips there.')}</div>`).join('') : '<p class="mute">Not recorded.</p>'}${EF.html()}</div>
   <div class="card" style="margin-top:16px"><h3>Your moves</h3>${moves(co).map(m=>`<div class="memo">${m}</div>`).join('')}
     <p style="margin-top:14px"><b>${C.transfer}</b></p>
     <div class="foot"><button class="ghost" data-about="1">How the score and the model work</button><button class="cta" data-go="reveal">See the real case</button></div></div>`;
@@ -557,20 +616,21 @@ document.addEventListener('click', e => {
   else if (d.dec){ if (S.cur[d.dec]>0) S.cur[d.dec]--; render(); }
   else if (d.deal){ S.cur[d.deal] = S.cur[d.deal] ? 0 : M.DEAL_COST[d.deal]; render(); }
   else if (d.kpi){ const i = S.curK.indexOf(d.kpi); if (i>=0) S.curK.splice(i,1); else if (S.curK.length<3) S.curK.push(d.kpi); render(); }
-  else if (d.commit){ if (left()===0 && S.curK.length===3) commit(); }
+  else if (d.commit){ if (left()===0 && S.curK.length===3 && S.curGave) commit(); }
   else if (d.next) next();
   else if (d.draw) draw();
   else if (d.about || b.id==='aboutBtn') about();
   else if (d.close) ov.innerHTML = '';
   else if (d.again){ reset(); go('intro'); }
 });
-document.addEventListener('change', e => { const i = e.target; if (i.name==='guess'){ S.guess = i.value; render(); } if (i.name==='diag'){ S.diag = i.value; render(); } if (i.name==='self'){ S.self = i.value; render(); } });
+document.addEventListener('change', e => { const i = e.target; if (i.name==='guess'){ S.guess = i.value; render(); } if (i.name==='diag'){ S.diag = i.value; render(); } if (i.name==='self'){ S.self = i.value; render(); } if (i.name==='gave'){ S.curGave = i.value; render(); } });
 document.addEventListener('keydown', e => { if (e.key==='Escape' && ov.querySelector('[data-close]')) ov.innerHTML = ''; });
 let rz; addEventListener('resize', ()=>{ clearTimeout(rz); rz = setTimeout(()=>{ if (/^r\d/.test(S.step)){ drawMap(); if ($('#strip')) drawStrip($('#strip'), S.strip); } if (S.step==='futures') animHist(); }, 150); });
+EF.watch(() => { if (ov.innerHTML) return null; const s = S.step; return s==='guess' ? 'Opening guess' : s==='diag' ? 'Diagnosis' : s==='choose' ? 'Choosing a strategy' : /^r\d/.test(s) ? 'Capital cycle ' + (+s[1]+1) : (s==='debrief' && !S.self) ? 'Rating your own plan' : null; });
 reset(); render();
 window.__demo = { state: () => S, go, model: M,
-  play(plan){ S.guess = plan.guess||'all'; S.diag = plan.diag||'core'; S.strat = plan.strat; S.rounds = []; S.kpis = []; S.strip = []; S.memoLog = [];
-    plan.rounds.forEach((a,i)=>{ S.cur = Object.assign(M.emptyAlloc(), a); S.curK = plan.kpis[i] || plan.kpis[0]; if (left()!==0) throw new Error('round '+i+' left '+left()); commit(); ov.innerHTML = ''; });
+  play(plan){ S.guess = plan.guess||'all'; S.diag = plan.diag||'core'; S.strat = plan.strat; S.gave = []; S.rounds = []; S.kpis = []; S.strip = []; S.memoLog = [];
+    plan.rounds.forEach((a,i)=>{ S.cur = Object.assign(M.emptyAlloc(), a); S.curK = plan.kpis[i] || plan.kpis[0]; S.curGave = (plan.gave && plan.gave[i]) || 'none'; if (left()!==0) throw new Error('round '+i+' left '+left()); commit(); ov.innerHTML = ''; });
     S.sim = M.simulate(S.rounds, S.kpis, S.strat, S.fut, S.base); go('futures'); } };
 })();
 </script></body></html>

@@ -70,3 +70,5 @@ a{color:var(--cy)}sup a{text-decoration:none;font-size:12px}
 .foot{display:flex;gap:12px;justify-content:space-between;align-items:center;margin-top:18px;flex-wrap:wrap}
 @media (max-width:900px){main{padding:14px}.board,.g2,.g3,.g4{grid-template-columns:1fr}.stepname{display:none}.top{padding:10px 14px;gap:10px}.brand{font-size:16px}.bars .b{grid-template-columns:110px 1fr 48px}.tl{grid-template-columns:56px 1fr}.deal{min-width:104px}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+#gave{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line,#444);background:transparent;color:inherit;font:inherit}#gave option{color:#111}.ef{margin-top:8px}

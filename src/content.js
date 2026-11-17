@@ -35,7 +35,7 @@ const C = {
   },
   guess: {
     q: 'Before you start. A company announces a new strategy. How much of next year’s budget should move to fund it?',
-    a: [['5', 'About 5%'], ['20', 'About 20%'], ['50', 'About 50% or more']]
+    a: [['2', 'About 2%'], ['5', 'About 5%'], ['10', 'About 10%'], ['20', 'About 20%']]
   },
   tiles: [
     ['Wireless', '54% of revenue', 'Subscribers are growing 1% a year. A challenger just cut its prices.'],

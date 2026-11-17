@@ -52,7 +52,7 @@ function choose(){
   <div class="foot"><span class="mute">Each chip you place later is ${bil(1)}.</span><button class="cta" data-go="r0" ${S.strat?'':'disabled'}>Open the first budget</button></div>`;
 }
 function startRound(){
-  const prev = S.rounds[t()-1]; S.cur = M.emptyAlloc();
+  const prev = S.rounds[t()-1]; S.cur = M.emptyAlloc(); S.curGave = ''; S.gave = S.gave || [];
   if (prev){ ['fiber','wireless','enterprise','legacy','dividend','debt'].forEach(o=>S.cur[o]=prev[o]); S.curK = S.kpis[t()-1].slice();
     let over = -left(); const order = ['debt','legacy','dividend','enterprise','wireless','fiber']; let i = 0;
     while (over>0 && i<300){ const o = order[i%6]; if (S.cur[o]>0){ S.cur[o]--; over--; } i++; }
@@ -82,7 +82,9 @@ function round(){
       <div class="stat"><span>Debt</span><b>${bil(L.debtStart + a.borrow - a.debt)}</b></div>
       <div class="stat"><span>Companies owned</span><b>${M.DEALS.filter(d=>L.owned[d]).map(d=>({ptv:'Satellite TV',media:'Studio',cable:'Cable',abroad:'Foreign carrier'})[d]).join(', ') || 'None'}</b></div>
       ${S.strip.length?'<canvas id="strip" height="'+(34+S.strip.length*26)+'"></canvas>':''}</div>
-    <button class="cta" id="commit" data-commit="1" ${(l===0&&S.curK.length===3)?'':'disabled'} style="justify-self:stretch">${l!==0?'Place all your capital':(S.curK.length!==3?'Pick three measures':'Commit this cycle')}</button>
+    <div class="card"><h3>Name the sacrifice</h3><p class="mute small">Before you commit: what is the main thing you are giving up this cycle?</p>
+      <select id="gave" name="gave" aria-label="What you are giving up this cycle"><option value="">Choose one</option>${C.rows.map(o=>`<option value="${o}" ${S.curGave===o?'selected':''}>${C.opts[o].name}</option>`).join('')}<option value="none" ${S.curGave==='none'?'selected':''}>Nothing. I am funding some of everything.</option></select></div>
+    <button class="cta" id="commit" data-commit="1" ${(l===0&&S.curK.length===3&&S.curGave)?'':'disabled'} style="justify-self:stretch">${l!==0?'Place all your capital':(S.curK.length!==3?'Pick three measures':(!S.curGave?'Name the sacrifice':'Commit this cycle'))}</button>
   </div></div>`;
   drawMap(); if (S.strip.length) drawStrip($('#strip'), S.strip);
 }
@@ -110,7 +112,7 @@ function drawStrip(c, strip){
 }
 function commit(){
   const L = led(), a = Object.assign({}, S.cur), k = S.curK.slice(), i = t();
-  const ms = memos(a, k, S.strat, L); S.memoLog.push(ms); S.rounds.push(a); S.kpis.push(k);
+  const ms = memos(a, k, S.strat, L); S.memoLog.push(ms); S.rounds.push(a); S.kpis.push(k); (S.gave = S.gave || []).push({ o: S.curGave, chips: S.curGave==='none' ? null : a[S.curGave] });
   const P = M.project(S.rounds, S.kpis); const sim = M.simulate(P.R, P.K, S.strat, S.fut, S.base); S.strip.push(sim);
   ov.innerHTML = `<div class="overlay"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mh"><h2 id="mh" tabindex="-1">What your people did in ${C.news[i][0]}</h2>
   ${ms.map(m=>`<div class="memo ${m.tag}"><div class="t">${C.kpis[m.id]} ${m.tag==='fits'?'<i>Fits your strategy</i>':(m.tag==='conflicts'?'<i>Works against your strategy</i>':'')}</div>${m.text}</div>`).join('')}
@@ -199,6 +201,7 @@ function debrief(){
     <h3 style="margin-top:14px">What you said no to</h3><div>${co.said_no.length ? co.said_no.map(o=>`<span class="pill no">${C.opts[o].name}</span>`).join('') : '<span class="pill">Nothing. You funded all ten.</span>'}</div>
     <h3 style="margin-top:14px">What you funded</h3><div>${funded.map(o=>`<span class="pill">${C.opts[o].name}: ${co.tot[o]}</span>`).join('')}</div>
     <p class="mute" style="margin-top:10px">At the start you said ${g[1].toLowerCase()} of a budget should move to fund a new strategy. Your first budget moved ${Math.round(co.moved*100)}% away from the status quo plan. ${C.mck}<sup><a href="${C.sources.mck[1]}" target="_blank" rel="noopener">[${n1}]</a></sup></p></div></div>
+  <div class="card" style="margin-top:16px"><h3>What you said you were giving up</h3>${(S.gave||[]).length ? S.gave.map((g,i)=>`<div class="memo">${C.news[i][0]}. You said: <b>${g.o==='none' ? 'nothing' : lc(C.opts[g.o].name)}</b>. ${g.o==='none' ? `You funded ${M.OPTS.filter(o=>S.rounds[i][o]>0).length} of ${M.OPTS.length} lines that cycle.` : (g.chips>0 ? `You still put ${plural(g.chips,'chip')} there.` : 'You put no chips there.')}</div>`).join('') : '<p class="mute">Not recorded.</p>'}${EF.html()}</div>
   <div class="card" style="margin-top:16px"><h3>Your moves</h3>${moves(co).map(m=>`<div class="memo">${m}</div>`).join('')}
     <p style="margin-top:14px"><b>${C.transfer}</b></p>
     <div class="foot"><button class="ghost" data-about="1">How the score and the model work</button><button class="cta" data-go="reveal">See the real case</button></div></div>`;
@@ -242,19 +245,20 @@ document.addEventListener('click', e => {
   else if (d.dec){ if (S.cur[d.dec]>0) S.cur[d.dec]--; render(); }
   else if (d.deal){ S.cur[d.deal] = S.cur[d.deal] ? 0 : M.DEAL_COST[d.deal]; render(); }
   else if (d.kpi){ const i = S.curK.indexOf(d.kpi); if (i>=0) S.curK.splice(i,1); else if (S.curK.length<3) S.curK.push(d.kpi); render(); }
-  else if (d.commit){ if (left()===0 && S.curK.length===3) commit(); }
+  else if (d.commit){ if (left()===0 && S.curK.length===3 && S.curGave) commit(); }
   else if (d.next) next();
   else if (d.draw) draw();
   else if (d.about || b.id==='aboutBtn') about();
   else if (d.close) ov.innerHTML = '';
   else if (d.again){ reset(); go('intro'); }
 });
-document.addEventListener('change', e => { const i = e.target; if (i.name==='guess'){ S.guess = i.value; render(); } if (i.name==='diag'){ S.diag = i.value; render(); } if (i.name==='self'){ S.self = i.value; render(); } });
+document.addEventListener('change', e => { const i = e.target; if (i.name==='guess'){ S.guess = i.value; render(); } if (i.name==='diag'){ S.diag = i.value; render(); } if (i.name==='self'){ S.self = i.value; render(); } if (i.name==='gave'){ S.curGave = i.value; render(); } });
 document.addEventListener('keydown', e => { if (e.key==='Escape' && ov.querySelector('[data-close]')) ov.innerHTML = ''; });
 let rz; addEventListener('resize', ()=>{ clearTimeout(rz); rz = setTimeout(()=>{ if (/^r\d/.test(S.step)){ drawMap(); if ($('#strip')) drawStrip($('#strip'), S.strip); } if (S.step==='futures') animHist(); }, 150); });
+EF.watch(() => { if (ov.innerHTML) return null; const s = S.step; return s==='guess' ? 'Opening guess' : s==='diag' ? 'Diagnosis' : s==='choose' ? 'Choosing a strategy' : /^r\d/.test(s) ? 'Capital cycle ' + (+s[1]+1) : (s==='debrief' && !S.self) ? 'Rating your own plan' : null; });
 reset(); render();
 window.__demo = { state: () => S, go, model: M,
-  play(plan){ S.guess = plan.guess||'all'; S.diag = plan.diag||'core'; S.strat = plan.strat; S.rounds = []; S.kpis = []; S.strip = []; S.memoLog = [];
-    plan.rounds.forEach((a,i)=>{ S.cur = Object.assign(M.emptyAlloc(), a); S.curK = plan.kpis[i] || plan.kpis[0]; if (left()!==0) throw new Error('round '+i+' left '+left()); commit(); ov.innerHTML = ''; });
+  play(plan){ S.guess = plan.guess||'all'; S.diag = plan.diag||'core'; S.strat = plan.strat; S.gave = []; S.rounds = []; S.kpis = []; S.strip = []; S.memoLog = [];
+    plan.rounds.forEach((a,i)=>{ S.cur = Object.assign(M.emptyAlloc(), a); S.curK = plan.kpis[i] || plan.kpis[0]; S.curGave = (plan.gave && plan.gave[i]) || 'none'; if (left()!==0) throw new Error('round '+i+' left '+left()); commit(); ov.innerHTML = ''; });
     S.sim = M.simulate(S.rounds, S.kpis, S.strat, S.fut, S.base); go('futures'); } };
 })();
